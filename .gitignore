@@ -1,0 +1,7 @@
+node_modules/
+dist/
+public/models/
+public/mediapipe/
+sessions/
+*.zip
+.DS_Store
