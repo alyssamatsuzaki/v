@@ -10,14 +10,17 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "simulate": "tsx scripts/simulate.ts"
+    "simulate": "tsx scripts/simulate.ts",
+    "simulate:robot": "tsx scripts/simulate-robot.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.2.0",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
