@@ -20,3 +20,4 @@
 - The export is a ZIP with one folder per session; `eeg_events` and `contact_forces` are present as empty arrays so the schema won't change when hardware arrives.
 - The built-in scene and synthetic gaze are seeded so `npm run simulate` is reproducible.
 - `npm run simulate` exits non-zero if Aska v0 fails to beat center bias and saliency on synthetic gaze.
+- Every screen and both views carry a "not a demo of the Aska product" label, and it stays in demo mode, because the product will be trained on VR headset eye tracking and EEG; webcam and pointer gaze are development stand-ins.

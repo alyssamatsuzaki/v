@@ -155,6 +155,7 @@ export class SessionRecorder {
       "- EEG and contact forces: not recorded yet (empty arrays reserved in session.json)",
       "",
       "Recorded locally in the browser. No data left this machine during recording.",
+      "Prototype session from Aska Lens, not product data: a webcam or pointer stood in for VR headset eye tracking.",
       "",
     ].join("\n");
   }

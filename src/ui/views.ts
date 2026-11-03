@@ -5,6 +5,21 @@ import { FOV_PATCHES, GRID_U, clamp, type Point } from "../core/types";
 const AMBER = "#f2b53a";
 const BLUE = "#4f86ff";
 const RED = "#e0406a";
+const WATERMARK = "PROTOTYPE \u00b7 NOT A PRODUCT DEMO";
+
+/** Bottom-left label on every view, so screen recordings carry it too. */
+function watermark(c: CanvasRenderingContext2D, W: number, H: number): void {
+  const s = Math.max(1, W / 640);
+  c.font = `600 ${Math.round(11 * s)}px ui-monospace, Menlo, monospace`;
+  c.textAlign = "left";
+  c.textBaseline = "middle";
+  const w = c.measureText(WATERMARK).width + 16 * s;
+  const h = 22 * s;
+  c.fillStyle = "rgba(14,22,30,0.78)";
+  c.fillRect(10 * s, H - h - 10 * s, w, h);
+  c.fillStyle = "#ffffff";
+  c.fillText(WATERMARK, 18 * s, H - h / 2 - 10 * s);
+}
 
 export function drawStageOverlay(cv: HTMLCanvasElement, gaze: Point | null, showGaze: boolean, flash: number): void {
   const c = cv.getContext("2d")!;
@@ -37,6 +52,7 @@ export function drawStageOverlay(cv: HTMLCanvasElement, gaze: Point | null, show
     c.arc(gaze.x * W, gaze.y * H, 12, 0, Math.PI * 2);
     c.stroke();
   }
+  watermark(c, W, H);
 }
 
 const mid = document.createElement("canvas");
@@ -156,4 +172,5 @@ export function drawAskaView(cv: HTMLCanvasElement, stage: HTMLCanvasElement, s:
     c.textAlign = "center";
     c.fillText("MISMATCH", 56, 21);
   }
+  watermark(c, W, H);
 }

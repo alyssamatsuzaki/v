@@ -49,7 +49,8 @@ a{color:var(--model);text-underline-offset:2px}
 h1{font-family:var(--font-display);font-weight:700;font-size:clamp(34px,5.6vw,60px);line-height:1;letter-spacing:-.025em;margin:0;text-wrap:balance;max-width:15ch;cursor:default}
 h1 .w{display:inline-block;transition:filter .35s ease,opacity .35s ease}
 .lede{margin:0;max-width:62ch;font-size:17px;color:var(--muted)}
-.badge{justify-self:start;display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;padding:6px 11px;border:1px dashed var(--muted);border-radius:999px}
+.badge{justify-self:start;display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11.5px;line-height:1.4;padding:7px 12px;border:1.5px solid var(--ink);border-radius:999px;max-width:100%}
+.badge i{flex:none}
 .badge i{width:7px;height:7px;border-radius:50%;background:var(--gaze);display:inline-block}
 
 /* loop strip */
@@ -162,7 +163,7 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
     <div class="eyebrow">Aska Labs · Vision loop</div>
     <h1 id="headline"><span class="w">Look</span> <span class="w">where</span> <span class="w">the</span> <span class="w">next</span> <span class="w">thing</span> <span class="w">happens.</span></h1>
     <p class="lede">Robot vision modeled on how a brain sees. It looks where the next event will happen, predicts what it will see and feel, notices the moment a prediction fails, and updates. Below, a gripper lifts an apple that is heavier than it looks.</p>
-    <span class="badge"><i></i>Simulation. No recorded data yet.</span>
+    <span class="badge"><i></i><b>Not a product demo.</b> A simulation of the loop Aska is building, with no recorded data.</span>
   </header>
 
   <section class="stack" aria-label="The loop">
@@ -295,7 +296,7 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
     <p class="next"><strong>Next for Aska:</strong> replace every simulated trace with aligned recordings of human gaze, EEG and measured physical outcomes, then train the model that looks, predicts and corrects.</p>
   </section>
 
-  <footer><span>Aska Labs</span><span>Brain-inspired vision models for robots</span></footer>
+  <footer><span>Aska Labs · Simulation, not a product demo</span><span>Brain-inspired vision models for robots</span></footer>
 </main>
 
 <script>
@@ -608,6 +609,13 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
     drawApple(c, a);
     drawGripper(c, wristAt(tr, t), gapAt(tr, t));
   }
+  function watermark(c) {
+    const label = "SIMULATION \u00b7 NOT A PRODUCT DEMO";
+    c.font = "600 8px " + MONO; c.textAlign = "left"; c.textBaseline = "middle";
+    const w = c.measureText(label).width + 12;
+    c.fillStyle = "rgba(14,22,30,0.75)"; rr(c, 8, H - 24, w, 16, 3); c.fill();
+    c.fillStyle = "#ffffff"; c.fillText(label, 14, H - 15.5);
+  }
   function drawUniformOverlay(c, boxes) {
     let n = 0;
     c.fillStyle = "rgba(64,124,255,0.30)";
@@ -618,6 +626,7 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
     c.strokeStyle = "rgba(255,255,255,0.32)"; c.lineWidth = 0.6; c.beginPath();
     for (let i = 1; i < GRID; i++) { c.moveTo(i * PW, 0); c.lineTo(i * PW, H); c.moveTo(0, i * PH); c.lineTo(W, i * PH); }
     c.stroke();
+    watermark(c);
     return n;
   }
   function drawAskaOverlay(c, boxes) {
@@ -661,6 +670,7 @@ footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:fl
       c.fillStyle = "#ffffff"; c.font = "600 9px " + MONO; c.textBaseline = "middle"; c.textAlign = "center";
       c.fillText("MISMATCH", bx + 42, by + 9.5);
     }
+    watermark(c);
     return n;
   }
 

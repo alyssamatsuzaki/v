@@ -373,7 +373,7 @@ function showReport(rec: SessionRecorder, ev: OnlineEvaluator): void {
     ["Calibration error", cal],
   ];
   $("reportFacts").innerHTML = facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
-  $("reportSub").textContent = `${d.meta.id} · gaze from ${d.meta.gazeSource === "pointer" ? "the pointer (not eye tracking)" : "the webcam"} · scene: ${d.meta.scene.name}`;
+  $("reportSub").textContent = `Prototype session, not a product demo · ${d.meta.id} · gaze from ${d.meta.gazeSource === "pointer" ? "the pointer (not eye tracking)" : "the webcam"} · scene: ${d.meta.scene.name}`;
   scoreTable($<HTMLTableElement>("reportTable"), ev);
   $("report").hidden = false;
   requestAnimationFrame(() => drawErrorChart($<HTMLCanvasElement>("reportChart"), ev));
