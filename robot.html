@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aska Robot View</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body class="rv">
+    <header class="top">
+      <div class="brand"><span class="logo">Aska Robot View</span><span class="ver">simulation</span></div>
+      <nav class="tabs" role="tablist" aria-label="Acts">
+        <button type="button" role="tab" data-act="record" aria-selected="true">1 · Record</button>
+        <button type="button" role="tab" data-act="learn" aria-selected="false">2 · Learn</button>
+        <button type="button" role="tab" data-act="deploy" aria-selected="false">3 · Deploy</button>
+      </nav>
+      <span class="keys"><kbd>T</kbd> tour · <kbd>D</kbd> demo mode</span>
+      <a class="sim-link" href="/">Aska Lens prototype</a>
+    </header>
+
+    <p class="notice" role="note"><b>Simulation. Not a product demo. Every signal on this page is generated.</b> It shows how human gaze and brain error responses could train a robot, seen from the robot's own cameras: gaze teaches where to look, and EEG marks when a grasp is going wrong. The robot runs only what it learned.</p>
+    <p class="caption" id="caption" aria-live="polite"></p>
+
+    <section class="act" id="act-record" aria-label="Record">
+      <div class="act-grid">
+        <figure class="card">
+          <figcaption class="card-head">
+            <div>
+              <div class="title">The robot's head camera, during recording</div>
+              <div class="sub" id="recSub"></div>
+            </div>
+            <div class="chips"><span class="chip" id="recMode"></span><span class="chip" id="recOutcome"></span></div>
+          </figcaption>
+          <div class="view">
+            <canvas id="recView" width="640" height="480"></canvas>
+            <canvas id="recWrist" class="inset" width="240" height="180"></canvas>
+          </div>
+          <div class="legend-row"><span><i class="sw gaze"></i>Operator's gaze (simulated)</span><span>Inset: wrist camera</span></div>
+        </figure>
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="title">What gets recorded</div>
+              <div class="sub">Brain, hand and object, on one clock. Time in seconds.</div>
+            </div>
+            <span class="tnow" id="recT"></span>
+          </div>
+          <canvas id="recTraces" class="traces"></canvas>
+          <div class="legend-row small">
+            <span><i class="mk" style="border-color:var(--ink);border-style:dotted"></i>Person notices</span>
+            <span><i class="mk" style="border-color:var(--error)"></i>Decoder flags an error response</span>
+            <span><i class="mk" style="border-color:var(--error);border-style:dashed"></i>Decoder false alarm</span>
+            <span><i class="mk" style="border-color:var(--gaze)"></i>Operator corrects</span>
+            <span><i class="mk" style="border-color:var(--ink);border-width:0 0 0 3px"></i>Irreversible</span>
+          </div>
+          <div class="row controls">
+            <button type="button" class="btn primary" id="recPlay">Pause</button>
+            <button type="button" class="btn" id="recNext">Next episode</button>
+            <select id="recSpeed" aria-label="Playback speed"><option value="0.25">0.25×</option><option value="0.5" selected>0.5×</option><option value="1">1×</option></select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="act" id="act-learn" aria-label="Learn" hidden>
+      <div class="act-grid">
+        <div class="card">
+          <div class="title">Where to look: the gaze policy learns from operator gaze</div>
+          <p class="sub" id="learnGazeSub"></p>
+          <canvas id="learnGaze" class="chart"></canvas>
+          <div class="weights" id="learnWeights"></div>
+        </div>
+        <div class="card">
+          <div class="title">When it's going wrong: failure detectors by label source</div>
+          <p class="sub">Each detector runs on the robot's own signals. Only its training labels differ. Success of the deployed robot (learned gaze, 100 episodes) against the number of recorded episodes.</p>
+          <canvas id="learnCurve" class="chart"></canvas>
+          <div class="legend-row" id="learnLegend"></div>
+          <div class="table-wrap"><table id="learnTable"></table></div>
+        </div>
+      </div>
+      <div class="card"><p class="sub" id="learnRec"></p></div>
+    </section>
+
+    <section class="act" id="act-deploy" aria-label="Deploy" hidden>
+      <div class="act-grid">
+        <figure class="card">
+          <figcaption class="card-head">
+            <div>
+              <div class="title">Uniform vision · outcome-trained detector</div>
+              <div class="sub">Every patch at full resolution</div>
+            </div>
+            <div class="count"><b>324</b><span>tokens / frame</span><em class="base">baseline</em></div>
+          </figcaption>
+          <div class="view"><canvas id="depA" width="640" height="480"></canvas></div>
+          <div class="chips"><span class="chip" id="depAFire"></span><span class="chip" id="depAOut"></span></div>
+        </figure>
+        <figure class="card">
+          <figcaption class="card-head">
+            <div>
+              <div class="title">Learned foveation · EEG-trained detector</div>
+              <div class="sub">Sharp only where the gaze policy looks</div>
+            </div>
+            <div class="count"><b>20</b><span>tokens / frame</span><em>94% fewer</em></div>
+          </figcaption>
+          <div class="view"><canvas id="depB" width="640" height="480"></canvas></div>
+          <div class="chips"><span class="chip" id="depBFire"></span><span class="chip" id="depBOut"></span></div>
+        </figure>
+      </div>
+      <div class="row controls">
+        <button type="button" class="btn primary" id="depPlay">Pause</button>
+        <button type="button" class="btn" id="depNext">Next episode</button>
+        <span class="sub" id="depSub"></span>
+      </div>
+      <div class="card" id="depResults">
+        <div class="title">Deployment, 200 simulated episodes per condition, distractors on, no human in the loop</div>
+        <p class="sub" id="depCaveat"></p>
+        <div class="table-wrap"><table id="depTable"></table></div>
+      </div>
+      <div class="card" id="depSweep">
+        <div class="title">Where the advantage disappears</div>
+        <p class="sub" id="sweepSub"></p>
+        <div class="sweep-grid" id="sweepGrid"></div>
+        <div class="legend-row"><span><i class="sw line" style="border-color:var(--m-aska)"></i>Learned foveation + EEG labels</span><span><i class="sw line" style="border-color:var(--m-center)"></i>Uniform + outcome labels</span></div>
+      </div>
+      <div class="card" id="assume">
+        <div class="title">Change the assumptions</div>
+        <p class="sub">Reruns a smaller study (40 recorded episodes, 100 deployed) with your settings. It takes a few seconds.</p>
+        <div class="sliders">
+          <label>EEG decoder hit rate <output id="oHit"></output><input type="range" id="sHit" min="0.3" max="1" step="0.05" /></label>
+          <label>Error-response latency (s) <output id="oLat"></output><input type="range" id="sLat" min="0.15" max="0.7" step="0.05" /></label>
+          <label>Squash a person notices <output id="oNot"></output><input type="range" id="sNot" min="0.02" max="0.24" step="0.01" /></label>
+          <label>Visual noise at full resolution <output id="oSig"></output><input type="range" id="sSig" min="0.005" max="0.08" step="0.005" /></label>
+          <label class="toggle"><input type="checkbox" id="sDis" checked /> Distractors</label>
+        </div>
+        <div class="row"><button type="button" class="btn primary" id="rerun">Rerun</button><span class="sub" id="rerunMsg"></span></div>
+        <div class="table-wrap"><table id="miniTable"></table></div>
+      </div>
+    </section>
+
+    <footer class="foot">Aska Labs · Simulation, not a product demo. Model and assumptions: docs/ROBOT_VIEW_MODEL.md. Robot-egocentric gaze and foveation follow Look, Focus, Act (Chuang et al., 2025); the EEG labeling is Aska's addition.</footer>
+    <script type="module" src="/src/robot/page/main.ts"></script>
+  </body>
+</html>

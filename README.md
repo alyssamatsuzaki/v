@@ -17,6 +17,16 @@ Everything runs locally in your browser. Nothing is uploaded.
 
 The pipeline itself doesn't depend on where gaze comes from: it takes timestamped gaze samples and scene frames. Next step: an importer for headset recordings and EEG markers, once the headset is chosen.
 
+## Aska Robot View (simulation)
+
+**Simulation. Not a product demo. Every signal on the page is generated.** `robot.html` (linked from the Aska Lens header) shows how human gaze and brain error responses could train a robot, from the robot's own head and wrist cameras:
+
+1. **Record:** a simulated person teleoperates a robot arm through an eye-tracking VR headset, or watches it run, while it moves a ripe tomato or an apple into a bowl. Their gaze lands in the robot's camera image; their simulated EEG error responses mark when a grasp starts going wrong.
+2. **Learn:** a gaze policy learns where to look from operator gaze, and a failure detector that runs on the robot's own signals learns from outcome, correction or EEG labels.
+3. **Deploy:** the same episode side by side, uniform vision (324 tokens) against learned foveation (20 tokens) with an EEG-trained detector, plus a 200-episode results table, a sensitivity sweep, and sliders to change the assumptions.
+
+Press **T** for a 60-second tour and **D** for demo mode; the label and watermarks stay in both. Regenerate the precomputed results with `npm run simulate:robot`. The model, every assumption and the known gaps are in [docs/ROBOT_VIEW_MODEL.md](docs/ROBOT_VIEW_MODEL.md); the numbers are in [docs/ROBOT_VIEW_RESULTS.md](docs/ROBOT_VIEW_RESULTS.md). In short: foveation saves compute without hurting success, and EEG labels help mainly when there are very few recordings and are fragile when the decoder is weak.
+
 ## Run it
 
 Requires Node 20 or newer and Chrome, Edge or another Chromium browser.
@@ -36,6 +46,7 @@ Other commands:
 | `npm test` | Unit tests (FFT, saliency, fixation and saccade detection, ridge regression, One Euro filter, online learning, leak-free evaluation, export) |
 | `npm run build` | Type-check and production build |
 | `npm run simulate` | Headless pipeline check on the built-in scene with synthetic gaze; prints the scoreboard |
+| `npm run simulate:robot` | Robot View study: records, learns, deploys every condition, sweeps assumptions; writes `docs/ROBOT_VIEW_RESULTS.md` and `public/robot-results.json` |
 
 The interactive explainer of the full vision loop (the apple that is heavier than it looks) is at `/vision-loop.html` while the dev server runs. It is a simulation, also labeled as not a product demo.
 

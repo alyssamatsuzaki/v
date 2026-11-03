@@ -29,9 +29,9 @@ export class RobotScene {
   readonly scene = new THREE.Scene();
   readonly headCam: THREE.PerspectiveCamera;
   readonly wristCam: THREE.PerspectiveCamera;
-  private upper = link(0.026, std(0x2b3640, 0.45, 0.3));
-  private fore = link(0.022, std(0x3a4652, 0.45, 0.3));
-  private wristL = link(0.018, std(0x2b3640, 0.45, 0.3));
+  private upper = link(0.015, std(0x2b3640, 0.45, 0.3));
+  private fore = link(0.013, std(0x3a4652, 0.45, 0.3));
+  private wristL = link(0.011, std(0x2b3640, 0.45, 0.3));
   private joints: THREE.Mesh[] = [];
   private palm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.13, 0.022), std(0x1f272e, 0.5, 0.2));
   private fingerA = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.022, 0.06), std(0x46535f, 0.5, 0.2));
@@ -70,7 +70,7 @@ export class RobotScene {
     base.position.set(0, 0, 0.06);
     s.add(base, this.upper, this.fore, this.wristL);
     for (let i = 0; i < 3; i++) {
-      const j = new THREE.Mesh(new THREE.SphereGeometry(i === 0 ? 0.034 : 0.028, 20, 14), std(0x161d23, 0.4, 0.4));
+      const j = new THREE.Mesh(new THREE.SphereGeometry(i === 0 ? 0.024 : 0.019, 20, 14), std(0x161d23, 0.4, 0.4));
       this.joints.push(j);
       s.add(j);
     }
@@ -165,9 +165,12 @@ export class RobotScene {
     this.ball.position.set(tk.ball.x, tk.ball.y, tk.ball.z);
 
     // wrist camera looks down from just above the palm
-    this.wristCam.position.set(k.tip.x, k.tip.y, k.tip.z + 0.13);
-    this.wristCam.up.set(Math.cos(graspYaw), Math.sin(graspYaw), 0);
-    this.wristCam.lookAt(k.tip.x, k.tip.y, k.tip.z - 0.05);
+    // wrist camera: mounted on the front of the gripper, looking down and back at the fingers
+    const fx = Math.cos(q.yaw);
+    const fy = Math.sin(q.yaw);
+    this.wristCam.position.set(k.tip.x + fx * 0.09, k.tip.y + fy * 0.09, k.tip.z + 0.08);
+    this.wristCam.up.set(0, 0, 1);
+    this.wristCam.lookAt(k.tip.x - fx * 0.01, k.tip.y - fy * 0.01, k.tip.z - 0.015);
   }
 }
 

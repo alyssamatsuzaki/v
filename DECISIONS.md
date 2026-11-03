@@ -21,3 +21,12 @@
 - The built-in scene and synthetic gaze are seeded so `npm run simulate` is reproducible.
 - `npm run simulate` exits non-zero if Aska v0 fails to beat center bias and saliency on synthetic gaze.
 - Every screen and both views carry a "not a demo of the Aska product" label, and it stays in demo mode, because the product will be trained on VR headset eye tracking and EEG; webcam and pointer gaze are development stand-ins.
+- Robot View is a separate page (`robot.html`) sharing `src/core`; its simulation is pure TypeScript with no DOM, so the page and `npm run simulate:robot` run the same code.
+- Robot View's results and trained models are precomputed by `npm run simulate:robot` into `public/robot-results.json`, so the page opens instantly; the assumptions panel reruns a smaller study (40 recorded, 100 deployed) on the main thread instead of a Web Worker, which takes a few seconds.
+- The deployed robot's grip comes from a policy cloned from operators: same spread of forces, none of their corrections.
+- A third label source, operator corrections, is included because teleoperation logs already contain them; leaving it out would overstate what EEG adds.
+- Half the recorded episodes are watched rollouts (no corrections), because that is where EEG labels have no substitute.
+- EEG labels cover 600 ms from each decoded error; after that window the pipeline marks ticks as unknown until a logged correction, instead of calling them fine.
+- The gaze policy starts from zero weights and never receives the planned waypoint.
+- The sweep trains on 20 recorded episodes; at 120 the baseline and EEG lines both sit near 100% and show nothing.
+- When the detector fires, the robot eases its grip if its own signals look like squeezing (closing aperture or rising visual squash), otherwise it tightens.

@@ -76,7 +76,8 @@ ${sw
 ## How to read this
 
 - Foveation buys compute (20 versus 324 tokens) and robustness to distractors. It does not make the robot see better than the uniform encoder, which sees everything at full resolution.
-- With 120 recorded episodes, outcome labels catch up: enough real failures happen in watched episodes to teach the same pattern. EEG's advantage in this simulation is learning from far fewer episodes, without letting failures happen, and firing earlier. The sweep uses 20 recorded episodes for that reason.
+- With 120 recorded episodes, outcome labels catch up: enough real failures happen in watched episodes to teach the same pattern, because a crush has a simple, steady signature here. EEG's advantage in this simulation is narrow: the EEG-trained detector works after 5 to 10 recorded episodes, before outcome labels have enough failures, and it fires a little earlier.
+- The sweep (20 recorded episodes) shows EEG labels are the more fragile source. With a decoder hit rate of 0.65 or below, or when people notice squash very early (0.03) or very late (0.2), the EEG-trained detector does worse than the outcome-trained baseline.
 - In teleoperation, the operator's own corrections already mark most problems, so correction labels and EEG labels end up close. EEG's distinct value is in episodes where nobody corrects, such as a person watching the robot run on its own.
 - The EEG advantage depends on people noticing problems before they become irreversible and on the decoder catching that noticing. The sweep shows how fast it fades when those assumptions weaken.
 
