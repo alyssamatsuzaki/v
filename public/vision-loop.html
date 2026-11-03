@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Aska Vision Loop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Familjen+Grotesk:wght@500;600;700&family=Martian+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* Layout: an instrument console. Thesis headline, the five-step loop, two camera views side by side, controls, readouts, trace panels, then what is measured versus simulated. */
+  --bg:#e8edf1;
+  --surface:#f7f9fa;
+  --sunken:#dde4ea;
+  --ink:#13202a;
+  --muted:#55636f;
+  --line:#cbd4db;
+  --model:#2a5fc4;
+  --gaze:#9a6700;
+  --error:#c42f5c;
+  --ok:#1d7a54;
+  --font-display:"Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --font-body:"Atkinson Hyperlegible","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-mono:"Martian Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1419;--surface:#151d24;--sunken:#1f2a33;--ink:#e2e9ee;--muted:#8f9ca8;--line:#2a353f;
+    --model:#7aa7ff;--gaze:#f0b43c;--error:#ff7199;--ok:#4cc391;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1419;--surface:#151d24;--sunken:#1f2a33;--ink:#e2e9ee;--muted:#8f9ca8;--line:#2a353f;
+  --model:#7aa7ff;--gaze:#f0b43c;--error:#ff7199;--ok:#4cc391;color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 56px;display:grid;gap:28px}
+a{color:var(--model);text-underline-offset:2px}
+:focus-visible{outline:2px solid var(--model);outline-offset:2px;border-radius:4px}
+
+/* header */
+.head{display:grid;gap:14px}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(34px,5.6vw,60px);line-height:1;letter-spacing:-.025em;margin:0;text-wrap:balance;max-width:15ch;cursor:default}
+h1 .w{display:inline-block;transition:filter .35s ease,opacity .35s ease}
+.lede{margin:0;max-width:62ch;font-size:17px;color:var(--muted)}
+.badge{justify-self:start;display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;padding:6px 11px;border:1px dashed var(--muted);border-radius:999px}
+.badge i{width:7px;height:7px;border-radius:50%;background:var(--gaze);display:inline-block}
+
+/* loop strip */
+.stack{display:grid;gap:12px}
+.loop{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.loop li{border-top:3px solid var(--line);padding-top:8px;display:grid;gap:2px;align-content:start;transition:border-color .2s,opacity .2s}
+.loop li[data-i="0"]{--c:var(--model)}
+.loop li[data-i="1"]{--c:var(--ink)}
+.loop li[data-i="2"]{--c:var(--error)}
+.loop li[data-i="3"]{--c:var(--gaze)}
+.loop li[data-i="4"]{--c:var(--ok)}
+.loop .name{font-family:var(--font-display);font-weight:600;font-size:15px;line-height:1.2;color:var(--muted)}
+.loop .sub{font-size:12.5px;color:var(--muted);line-height:1.3}
+.loop li.is-active{border-color:var(--c)}
+.loop li.is-active .name{color:var(--c)}
+.loop li.is-done{border-color:color-mix(in srgb,var(--c) 45%,var(--line))}
+.loop li.is-done .name{color:var(--ink)}
+.loop li.is-skipped{opacity:.4}
+.caption{margin:0;min-height:3em;font-size:16.5px;max-width:72ch}
+
+/* scopes */
+.scopes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.scope{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;min-width:0;align-content:start}
+.scope-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.scope-name{font-family:var(--font-display);font-weight:600;font-size:18px;line-height:1.2}
+.scope-sub{font-size:13.5px;color:var(--muted);max-width:32ch;line-height:1.35}
+.count{display:grid;justify-items:end;text-align:right;flex:none}
+.count .num{font-family:var(--font-display);font-weight:700;font-size:38px;line-height:1;font-variant-numeric:tabular-nums}
+.count .unit{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.count .save{font-family:var(--font-mono);font-size:10px;color:var(--gaze);font-weight:600}
+.count .save.base{color:var(--muted);font-weight:400}
+.view{position:relative;aspect-ratio:4/3;max-width:100%;border-radius:8px;overflow:hidden;background:#1f272e}
+.view canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pointer-mode .view canvas{touch-action:none;cursor:crosshair}
+.scope-foot{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13.5px;color:var(--muted);align-items:center;min-height:26px}
+.scope-foot b{color:var(--ink);font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;gap:6px;align-items:center;font-family:var(--font-mono);font-size:10px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip[data-s="yes"]{color:var(--ok);border-color:currentColor}
+.chip[data-s="no"]{color:var(--error);border-color:currentColor}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:16px 22px;align-items:flex-end;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.group{display:grid;gap:6px;min-width:0}
+.label{font-family:var(--font-mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.btn{font:700 14px/1 var(--font-body);padding:11px 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;min-height:38px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--bg);min-width:86px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;max-width:100%}
+.seg button{font:400 13.5px/1 var(--font-body);padding:11px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--sunken);color:var(--ink);font-weight:700}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:14px;min-height:38px;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--model);margin:0}
+.range{display:flex;align-items:center;gap:10px;min-height:38px}
+.range input{width:150px;max-width:50vw;accent-color:var(--error)}
+.range output{font-family:var(--font-mono);font-size:12px;font-variant-numeric:tabular-nums;min-width:52px}
+.note{margin:0;font-size:12.5px;color:var(--muted)}
+
+/* readouts */
+.readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0}
+.readout div{display:grid;gap:2px;min-width:0}
+.readout dt{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.readout dd{margin:0;font-family:var(--font-display);font-weight:600;font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.readout{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* traces */
+.traces{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:8px;align-content:start;min-width:0}
+.phead{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.panel h2{font-family:var(--font-display);font-weight:600;font-size:17px;margin:0}
+.panel p{margin:0;font-size:13.5px;color:var(--muted);max-width:60ch}
+.panel canvas{width:100%;height:190px;display:block}
+.tnow{font-family:var(--font-mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pbody{display:grid;gap:12px;min-width:0}
+.legend{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:12.5px;color:var(--muted)}
+.legend li{display:flex;align-items:center;gap:8px}
+.sw{width:22px;height:0;border-top:2px solid;flex:none}
+.sw.dash{border-top-style:dashed}
+.sw.dot2{border-top-style:dotted}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.box{width:14px;height:10px;border-radius:2px;flex:none}
+.ev{font-family:var(--font-mono);font-size:11px;font-variant-numeric:tabular-nums;color:var(--ink);margin-left:auto;padding-left:10px;white-space:nowrap}
+@media (min-width:720px){
+  .traces{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .panel.force{grid-column:1 / -1}
+  .force .pbody{grid-template-columns:minmax(0,1fr) 250px;align-items:start}
+}
+
+/* facts */
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px 32px;border-top:1px solid var(--line);padding-top:26px}
+.facts h2{font-family:var(--font-display);font-weight:600;font-size:20px;margin:0 0 10px}
+.facts ul{margin:0;padding-left:18px;display:grid;gap:9px;max-width:62ch}
+.facts li{font-size:15px}
+.cite{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.next{grid-column:1/-1;margin:0;font-size:16px;max-width:72ch}
+footer{font-family:var(--font-mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;min-width:0;overflow-wrap:anywhere;border-top:1px solid var(--line);padding-top:14px}
+
+@media (max-width:640px){
+  .loop .sub{display:none}
+  .loop .name{font-size:12.5px}
+  .scope-head{flex-wrap:wrap}
+}
+@media (prefers-reduced-motion: reduce){
+  h1 .w,.loop li{transition:none}
+}
+</style>
+
+<main class="wrap">
+  <header class="head">
+    <div class="eyebrow">Aska Labs · Vision loop</div>
+    <h1 id="headline"><span class="w">Look</span> <span class="w">where</span> <span class="w">the</span> <span class="w">next</span> <span class="w">thing</span> <span class="w">happens.</span></h1>
+    <p class="lede">Robot vision modeled on how a brain sees. It looks where the next event will happen, predicts what it will see and feel, notices the moment a prediction fails, and updates. Below, a gripper lifts an apple that is heavier than it looks.</p>
+    <span class="badge"><i></i>Simulation. No recorded data yet.</span>
+  </header>
+
+  <section class="stack" aria-label="The loop">
+    <ol class="loop" id="loop">
+      <li data-i="0"><span class="name">Predict</span><span class="sub">Where to look, what to feel</span></li>
+      <li data-i="1"><span class="name">Sense</span><span class="sub">Foveated view and contact</span></li>
+      <li data-i="2"><span class="name">Detect mismatch</span><span class="sub">The error signal</span></li>
+      <li data-i="3"><span class="name">Act</span><span class="sub">Correct within about 90 ms</span></li>
+      <li data-i="4"><span class="name">Update</span><span class="sub">Memory for the next lift</span></li>
+    </ol>
+    <p class="caption" id="caption"></p>
+  </section>
+
+  <section class="scopes" id="scopes" aria-label="Two ways to see the same scene">
+    <figure class="scope">
+      <figcaption class="scope-head">
+        <div>
+          <div class="scope-name">Uniform encoder</div>
+          <div class="scope-sub">Every patch at full resolution, wherever the action is.</div>
+        </div>
+        <div class="count"><span class="num">324</span><span class="unit">tokens / frame</span><span class="save base">baseline</span></div>
+      </figcaption>
+      <div class="view"><canvas id="cvU" role="img" aria-label="Tabletop scene split into an 18 by 18 grid of full-resolution patches. Patches covering the apple, gripper and plate are tinted blue."></canvas></div>
+      <div class="scope-foot"><span>Tokens on the apple, gripper and plate: <b id="relU">0 of 324</b> (<b id="relUp">0%</b>)</span></div>
+    </figure>
+    <figure class="scope">
+      <figcaption class="scope-head">
+        <div>
+          <div class="scope-name">Aska, gaze-guided</div>
+          <div class="scope-sub">Full resolution where gaze lands. Four coarse tokens for the rest.</div>
+        </div>
+        <div class="count"><span class="num">20</span><span class="unit">tokens / frame</span><span class="save">94% fewer</span></div>
+      </figcaption>
+      <div class="view"><canvas id="cvA" role="img" aria-label="The same scene, blurred except for a sharp 4 by 4 patch region around the gaze point, which is marked in amber with the recent scanpath."></canvas></div>
+      <div class="scope-foot">
+        <span>On the task: <b id="relA">0 of 20</b> (<b id="relAp">0%</b>)</span>
+        <span class="chip" id="chipC" data-s="pending">Contact in fovea: pending</span>
+        <span class="chip" id="chipL" data-s="pending">Lift-off in fovea: pending</span>
+      </div>
+    </figure>
+  </section>
+
+  <section class="controls" aria-label="Simulation controls">
+    <div class="group"><span class="label">Playback</span><button class="btn primary" id="play" type="button" aria-pressed="true">Pause</button></div>
+    <div class="group"><span class="label">Speed</span>
+      <div class="seg" id="speed" role="group" aria-label="Speed">
+        <button type="button" id="sp1" data-speed="0.1" aria-pressed="false">0.1×</button><button type="button" id="sp2" data-speed="0.25" aria-pressed="true">0.25×</button><button type="button" id="sp3" data-speed="1" aria-pressed="false">Real time</button>
+      </div>
+    </div>
+    <div class="group"><span class="label">Gaze policy</span>
+      <div class="seg" id="gazeSeg" role="group" aria-label="Gaze policy">
+        <button type="button" id="gz1" data-gaze="predictive" aria-pressed="true">Predictive</button><button type="button" id="gz2" data-gaze="saliency" aria-pressed="false">Saliency</button><button type="button" id="gz3" data-gaze="pointer" aria-pressed="false">Your pointer</button>
+      </div>
+    </div>
+    <div class="group"><span class="label">Scene</span><label class="toggle" for="distract"><input type="checkbox" id="distract"> Distractors</label></div>
+    <div class="group"><span class="label">Apple's real weight</span>
+      <div class="range"><input type="range" id="weight" min="80" max="400" step="10" value="280" aria-label="Apple's real weight in grams"><output id="weightOut" for="weight">280 g</output></div>
+    </div>
+    <div class="group"><span class="label">Memory</span><button class="btn" id="resetMem" type="button">Reset memory</button></div>
+    <p class="note" id="phint" hidden>Move your pointer over either view. The fovea follows it.</p>
+    <p class="note" id="wnote" hidden>The new weight applies from the next lift.</p>
+  </section>
+
+  <dl class="readout" aria-label="Current lift">
+    <div><dt>Lift</dt><dd id="rLift">1</dd></div>
+    <div><dt>Expected weight</dt><dd id="rE">150 g</dd></div>
+    <div><dt>Actual weight</dt><dd id="rA">280 g</dd></div>
+    <div><dt>Prediction error</dt><dd id="rErr">130 g</dd></div>
+  </dl>
+
+  <section class="traces" aria-label="Traces">
+    <div class="panel force">
+      <div class="phead"><h2>Lifting force</h2><span class="tnow" id="tNow">t 0 ms</span></div>
+      <p>Newtons, by time from the start of the reach (ms). The plan comes from how the apple looks and what past lifts taught.</p>
+      <div class="pbody">
+        <canvas id="cvF" role="img" aria-label="Planned versus measured lifting force over time, with markers for expected lift-off, mismatch, correction and actual lift-off."></canvas>
+        <div class="stack">
+          <ul class="legend">
+            <li><span class="sw dash" style="border-color:var(--model)"></span><span id="lgPlan">Planned force</span></li>
+            <li><span class="sw" style="border-color:var(--ink)"></span>Measured force</li>
+            <li><span class="sw dot2" style="border-color:var(--muted)"></span><span id="lgW">Apple's weight</span></li>
+          </ul>
+          <ul class="legend">
+            <li><span class="dot" style="background:var(--model)"></span>Expected lift-off<span class="ev" id="evP"></span></li>
+            <li><span class="dot" style="background:var(--error)"></span>Mismatch registered<span class="ev" id="evM"></span></li>
+            <li><span class="dot" style="background:var(--gaze)"></span>Correction starts<span class="ev" id="evC"></span></li>
+            <li><span class="dot" style="background:var(--ink)"></span>Actual lift-off<span class="ev" id="evL"></span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Mismatch signal</h2><span class="tnow">µV, last 1.6 s</span></div>
+      <p>Simulated EEG from a fronto-central channel. A failed prediction is followed by a dip and a rise, the shape of an error-related potential.</p>
+      <canvas id="cvE" role="img" aria-label="Scrolling simulated EEG trace with red markers where the model registers a mismatch."></canvas>
+      <ul class="legend">
+        <li><span class="sw" style="border-color:var(--error)"></span>Model registers a mismatch</li>
+        <li><span class="box" style="background:color-mix(in srgb,var(--error) 18%,transparent)"></span>Error-related potential window</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Learning across lifts</h2><span class="tnow">grams</span></div>
+      <p>Weight prediction error for each finished lift. Memory updates after every lift, so the error shrinks.</p>
+      <canvas id="cvL" role="img" aria-label="Bar chart of weight prediction error per lift, shrinking as memory updates."></canvas>
+      <ul class="legend">
+        <li><span class="box" style="background:var(--error)"></span>Above the mismatch threshold</li>
+        <li><span class="box" style="background:var(--ok)"></span>Within the threshold, no mismatch</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="facts" aria-label="What is measured and what is simulated">
+    <div>
+      <h2>From published studies</h2>
+      <ul>
+        <li>People look at the spot they are about to touch before the hand arrives, and don't look at the hand itself. <span class="cite"><a href="https://www.scilit.net/publications/f1346ff5d03f134a0b4e03fbfc173c22" target="_blank" rel="noopener">Johansson et al., 2001</a></span></li>
+        <li>When an object is heavier than expected, the corrective force increase starts within about 90 to 100 ms. <span class="cite"><a href="https://link.springer.com/article/10.1007/BF00247522" target="_blank" rel="noopener">Johansson &amp; Westling, 1988</a>; <a href="https://pubmed.ncbi.nlm.nih.gov/37884350/" target="_blank" rel="noopener">McGarity-Shipley et al., 2023</a></span></li>
+        <li>Gaze-guided foveation cut a robot policy's vision tokens from 324 to 20 and made it more robust to distractors. <span class="cite"><a href="https://arxiv.org/html/2507.15833v1" target="_blank" rel="noopener">Chuang et al., 2025</a></span></li>
+        <li>Error-related brain potentials can be detected in single EEG trials during robot interaction. <span class="cite"><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5730605/" target="_blank" rel="noopener">Kim et al., 2017</a></span></li>
+      </ul>
+    </div>
+    <div>
+      <h2>Simulated on this page</h2>
+      <ul>
+        <li>The scene, the forces and the EEG trace are generated. Nothing here is recorded.</li>
+        <li>Lift-off 250 ms after contact, a memory that absorbs 60% of each error, and the saliency baseline are toy settings.</li>
+        <li>Token counts follow the 324 versus 20 comparison above. The share of tokens on the apple, gripper and plate is computed from this scene's geometry.</li>
+      </ul>
+    </div>
+    <p class="next"><strong>Next for Aska:</strong> replace every simulated trace with aligned recordings of human gaze, EEG and measured physical outcomes, then train the model that looks, predicts and corrects.</p>
+  </section>
+
+  <footer><span>Aska Labs</span><span>Brain-inspired vision models for robots</span></footer>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+
+  /* geometry and constants (scene units: 480 x 360) */
+  const W = 480, H = 360, GRID = 18, PW = W / GRID, PH = H / GRID, FOV = 4, FW = PW * FOV, FH = PH * FOV;
+  const U_TOKENS = GRID * GRID, A_TOKENS = FOV * FOV + 4;
+  const GN = 9.81 / 1000;                 // newtons per gram
+  const T_CONTACT = 1000, LOAD_MS = 250, T_PRED = T_CONTACT + LOAD_MS, CORR = 90;
+  const TOL = 0.08, LEARN = 0.6, APPEAR = 150;
+  const P = {
+    start: { x: 404, y: 70 }, above: { x: 150, y: 150 }, grasp: { x: 150, y: 198 },
+    lifted: { x: 150, y: 140 }, carry: { x: 340, y: 140 }, place: { x: 340, y: 194 },
+    apple: { x: 150, y: 228 }, plateApple: { x: 340, y: 224 }, plate: { x: 340, y: 251 },
+    neutral: { x: 258, y: 150 }, graspSite: { x: 150, y: 226 }, placeSite: { x: 340, y: 230 }
+  };
+  const AR = 22, OPEN = 66, CLOSED = 45;
+  const MONO = '"Martian Mono", ui-monospace, Menlo, monospace';
+  const BODY = '"Atkinson Hyperlegible", system-ui, sans-serif';
+
+  /* helpers */
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const c01 = v => clamp(v, 0, 1);
+  const mj = x => { x = c01(x); return x * x * x * (10 - 15 * x + 6 * x * x); };
+  const lerp = (a, b, u) => ({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u });
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const gauss = (x, m, s) => Math.exp(-0.5 * ((x - m) / s) ** 2);
+  const fmt = n => Math.round(n).toLocaleString("en-US");
+  let spare = null;
+  function randn() {
+    if (spare !== null) { const s = spare; spare = null; return s; }
+    let u = 0; while (u === 0) u = Math.random();
+    const v = Math.random(), r = Math.sqrt(-2 * Math.log(u));
+    spare = r * Math.sin(2 * Math.PI * v);
+    return r * Math.cos(2 * Math.PI * v);
+  }
+  function setText(el, s) { if (el.textContent !== s) el.textContent = s; }
+  function rr(c, x, y, w, h, r) {
+    c.beginPath(); c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+  }
+
+  /* state */
+  let reduce = false;
+  try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+  const S = {
+    memE: APPEAR, actualA: 280, speed: 0.25, gazeMode: "predictive", distract: false,
+    playing: !reduce, gT: 0, waiting: false, waitReal: 0, history: [], erp: [], eeg: [], eegT: -2000, pointer: null
+  };
+
+  function plan(E, A, n) {
+    const rate = E / LOAD_MS, err = Math.abs(A - E) / A;
+    const tr = { n, E, A, t: 0, rate, err, tMis: null, tCorr: null, seen: { contact: null, lift: null } };
+    if (err < TOL) { tr.kind = "match"; tr.tLift = T_CONTACT + LOAD_MS * A / E; }
+    else if (A > E) { tr.kind = "heavy"; tr.tMis = T_PRED; tr.tCorr = T_PRED + CORR; tr.tLift = tr.tCorr + (A - E * 1.04) / (0.7 * rate); }
+    else { tr.kind = "light"; tr.tLift = T_CONTACT + LOAD_MS * A / E; tr.tMis = tr.tLift; tr.tCorr = tr.tLift + CORR; }
+    tr.tPlace = tr.tLift + 800;
+    tr.tRelease = tr.tPlace + 100;
+    tr.tHome = tr.tRelease + 600;
+    tr.tEnd = tr.tHome + 150;
+    tr.surprise = Math.min(1.4, err * 2.2);
+    return tr;
+  }
+  let lift = plan(S.memE, S.actualA, 1);
+
+  /* physics of the lift, in grams-equivalent of load force */
+  function loadG(tr, t) {
+    if (t < T_CONTACT) return 0;
+    if (t >= tr.tPlace) return Math.max(0, tr.A * (1 - (t - tr.tPlace) / 100));
+    const r = tr.rate;
+    if (tr.kind === "heavy") {
+      if (t < T_PRED) return r * (t - T_CONTACT);
+      if (t < tr.tCorr) return tr.E * (1 + 0.04 * (t - T_PRED) / CORR);
+      if (t < tr.tLift) return tr.E * 1.04 + 0.7 * r * (t - tr.tCorr);
+      return tr.A * (1 + 0.06 * Math.exp(-(t - tr.tLift) / 80));
+    }
+    if (t < tr.tLift) return r * (t - T_CONTACT);
+    if (tr.kind === "light") {
+      if (t < tr.tCorr) return r * (t - T_CONTACT);
+      const peak = r * (tr.tCorr - T_CONTACT);
+      return tr.A + (peak - tr.A) * Math.exp(-(t - tr.tCorr) / 60);
+    }
+    return tr.A * (1 + 0.04 * Math.exp(-(t - tr.tLift) / 80));
+  }
+  function wristAt(tr, t) {
+    let p;
+    if (t < 150) p = P.start;
+    else if (t < 750) p = lerp(P.start, P.above, mj((t - 150) / 600));
+    else if (t < 900) p = lerp(P.above, P.grasp, mj((t - 750) / 150));
+    else if (t < tr.tLift) {
+      p = P.grasp;
+      if (tr.kind === "heavy" && t >= T_PRED) p = { x: p.x + Math.sin(t * 0.9) * 0.6, y: p.y };
+    }
+    else if (t < tr.tPlace) {
+      const u = t - tr.tLift;
+      if (u < 250) p = lerp(P.grasp, P.lifted, mj(u / 250));
+      else if (u < 600) p = lerp(P.lifted, P.carry, mj((u - 250) / 350));
+      else p = lerp(P.carry, P.place, mj((u - 600) / 200));
+      if (tr.kind === "light" && u < 220) p = { x: p.x, y: p.y - Math.sin(Math.PI * u / 220) * tr.surprise * 14 };
+    }
+    else if (t < tr.tRelease + 100) p = P.place;
+    else if (t < tr.tHome) p = lerp(P.place, P.start, mj((t - tr.tRelease - 100) / (tr.tHome - tr.tRelease - 100)));
+    else p = P.start;
+    return p;
+  }
+  function gapAt(tr, t) {
+    if (t < 900) return OPEN;
+    if (t < T_CONTACT) return OPEN + (CLOSED - OPEN) * mj((t - 900) / 100);
+    if (t < tr.tRelease) return CLOSED;
+    if (t < tr.tRelease + 100) return CLOSED + (OPEN - CLOSED) * mj((t - tr.tRelease) / 100);
+    return OPEN;
+  }
+  function appleAt(tr, t) {
+    if (t < tr.tLift) return P.apple;
+    if (t < tr.tPlace) { const w = wristAt(tr, t); return { x: w.x, y: w.y + 30 }; }
+    return P.plateApple;
+  }
+  function ballAt(t) { return { x: 235 + 52 * Math.sin(t / 650), y: 101 - 40 * Math.abs(Math.sin(t / 210)) }; }
+
+  /* gaze */
+  const gaze = { pos: { ...P.neutral }, from: { ...P.neutral }, to: { ...P.neutral }, t0: -1e9, landed: true, path: [] };
+  const sal = { last: -1e9, id: null, p: null };
+  function predTarget(tr, t) {
+    if (t < 80) return P.neutral;
+    if (t < tr.tLift + 100) return P.graspSite;
+    if (t < tr.tRelease + 100) return P.placeSite;
+    return P.neutral;
+  }
+  function salTarget() {
+    if (sal.p && S.gT - sal.last < 280) return sal.p;
+    sal.last = S.gT;
+    const t = lift.t, w = wristAt(lift, t), w0 = wristAt(lift, Math.max(0, t - 30));
+    const speed = dist(w, w0) / 30, a = appleAt(lift, t);
+    const cand = [
+      { id: "grip", p: { x: w.x, y: w.y + 24 }, s: 0.35 + Math.min(1, speed * 2.2) },
+      { id: "apple", p: { x: a.x, y: a.y }, s: 0.6 },
+      { id: "sponge", p: { x: 240, y: 240 }, s: 0.45 },
+      { id: "cup", p: { x: 62, y: 222 }, s: 0.35 },
+      { id: "plate", p: { x: 340, y: 250 }, s: 0.25 }
+    ];
+    if (S.distract) {
+      cand.push({ id: "led", p: { x: 56, y: 55 }, s: 1.05 });
+      cand.push({ id: "ball", p: ballAt(S.gT), s: 0.85 });
+    }
+    let best = cand[0], bs = -Infinity;
+    for (const k of cand) {
+      const s = k.s + Math.random() * 0.35 - (k.id === sal.id ? 0.45 : 0);
+      if (s > bs) { bs = s; best = k; }
+    }
+    sal.id = best.id; sal.p = { ...best.p };
+    return sal.p;
+  }
+  function setGazeTarget(target) {
+    if (dist(target, gaze.to) < 3) return;
+    gaze.from = { ...gaze.pos }; gaze.to = { ...target }; gaze.t0 = S.gT; gaze.landed = false;
+  }
+  function updateGaze() {
+    if (S.gazeMode === "pointer") {
+      if (S.pointer) { gaze.pos = { ...S.pointer }; gaze.to = { ...S.pointer }; gaze.from = { ...S.pointer }; }
+      return;
+    }
+    setGazeTarget(S.gazeMode === "saliency" ? salTarget() : predTarget(lift, lift.t));
+    const dur = 30 + dist(gaze.from, gaze.to) * 0.08;
+    const u = c01((S.gT - gaze.t0) / dur);
+    gaze.pos = lerp(gaze.from, gaze.to, mj(u));
+    if (u >= 1 && !gaze.landed) {
+      gaze.landed = true; gaze.path.push({ ...gaze.to });
+      if (gaze.path.length > 6) gaze.path.shift();
+    }
+  }
+  function fovRect() { return { x: clamp(gaze.pos.x - FW / 2, 0, W - FW), y: clamp(gaze.pos.y - FH / 2, 0, H - FH) }; }
+  function inFovea(p) { const f = fovRect(); return p.x >= f.x && p.x <= f.x + FW && p.y >= f.y && p.y <= f.y + FH; }
+  function relBoxes() {
+    const t = lift.t, a = appleAt(lift, t), w = wristAt(lift, t), g = gapAt(lift, t);
+    return [
+      { x: a.x - AR - 2, y: a.y - AR - 10, w: AR * 2 + 14, h: AR * 2 + 12 },
+      { x: w.x - g / 2 - 11, y: w.y - 10, w: g + 22, h: 56 },
+      { x: P.plate.x - 50, y: P.plate.y - 12, w: 100, h: 24 }
+    ];
+  }
+  const overl = (x, y, w, h, b) => x < b.x + b.w - 0.5 && x + w > b.x + 0.5 && y < b.y + b.h - 0.5 && y + h > b.y + 0.5;
+
+  /* simulated EEG */
+  const eg = { a1: 0, a2: 0, amp: 3.5, ph: Math.random() * 6 };
+  function eegSample(t) {
+    eg.a1 = 0.97 * eg.a1 + randn() * 1.2;
+    eg.a2 = 0.8 * eg.a2 + randn() * 1.4;
+    eg.amp = clamp(eg.amp + randn() * 0.12, 1.5, 6);
+    let v = 0.9 * eg.a1 + 0.8 * eg.a2 + eg.amp * Math.sin(2 * Math.PI * 10 * t / 1000 + eg.ph) + randn() * 0.7;
+    for (const e of S.erp) {
+      const d = t - e.t;
+      if (d > 0 && d < 900) v += e.s * (-11 * gauss(d, 250, 45) + 14 * gauss(d, 380, 75));
+    }
+    return v;
+  }
+  function genEEG() {
+    while (S.eegT + 4 <= S.gT) { S.eegT += 4; S.eeg.push({ t: S.eegT, v: eegSample(S.eegT) }); }
+    while (S.eeg.length && S.eeg[0].t < S.gT - 2000) S.eeg.shift();
+    while (S.erp.length && S.erp[0].t < S.gT - 4000) S.erp.shift();
+  }
+
+  /* simulation step */
+  function finishLift() {
+    const tr = lift;
+    S.history.push({ n: tr.n, E: tr.E, A: tr.A, err: Math.abs(tr.A - tr.E) });
+    if (S.history.length > 40) S.history.shift();
+    S.memE = tr.E + LEARN * (tr.A - tr.E);
+    S.waiting = true; S.waitReal = 1400;
+  }
+  function nextLift() {
+    lift = plan(S.memE, S.actualA, lift.n + 1);
+    S.waiting = false; sal.p = null; $("wnote").hidden = true;
+  }
+  function advance(dt) {
+    S.gT += dt;
+    const tr = lift;
+    if (!S.waiting) {
+      const prev = tr.t;
+      tr.t = Math.min(tr.t + dt, tr.tEnd);
+      updateGaze();
+      if (prev < T_CONTACT && tr.t >= T_CONTACT) tr.seen.contact = inFovea(P.graspSite);
+      if (prev < tr.tLift && tr.t >= tr.tLift) tr.seen.lift = inFovea(appleAt(tr, tr.tLift));
+      if (tr.tMis !== null && prev < tr.tMis && tr.t >= tr.tMis) S.erp.push({ t: S.gT - (tr.t - tr.tMis), s: tr.surprise });
+      if (tr.t >= tr.tEnd) finishLift();
+    } else updateGaze();
+    genEEG();
+  }
+
+  /* scene drawing (a fixed "camera image" palette, independent of page theme) */
+  function drawCup(c) {
+    c.fillStyle = "rgba(0,0,0,0.2)"; c.beginPath(); c.ellipse(64, 251, 22, 4, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#2f7470"; c.lineWidth = 5; c.beginPath(); c.arc(45, 224, 10, Math.PI * 0.5, Math.PI * 1.5); c.stroke();
+    const g = c.createLinearGradient(46, 0, 82, 0);
+    g.addColorStop(0, "#2f7a75"); g.addColorStop(0.5, "#46a39c"); g.addColorStop(1, "#2a6b67");
+    c.fillStyle = g; c.beginPath(); c.moveTo(46, 202); c.lineTo(82, 202); c.lineTo(79, 248); c.quadraticCurveTo(64, 252, 49, 248); c.closePath(); c.fill();
+    c.fillStyle = "#1d4744"; c.beginPath(); c.ellipse(64, 202, 18, 4, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#6cc0b8"; c.lineWidth = 1.2; c.stroke();
+  }
+  function drawSponge(c) {
+    c.fillStyle = "rgba(0,0,0,0.18)"; c.fillRect(216, 249, 52, 3);
+    c.fillStyle = "#e1bf4a"; rr(c, 214, 236, 52, 14, 3); c.fill();
+    c.fillStyle = "#3d8a52"; rr(c, 214, 230, 52, 8, 3); c.fill();
+    c.fillStyle = "rgba(120,90,10,0.35)";
+    for (const [x, y] of [[222, 243], [232, 246], [246, 242], [256, 245], [239, 240]]) { c.beginPath(); c.arc(x, y, 1.3, 0, Math.PI * 2); c.fill(); }
+  }
+  function drawPlate(c) {
+    c.fillStyle = "rgba(0,0,0,0.18)"; c.beginPath(); c.ellipse(343, 256, 52, 10, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "#f1f4f6"; c.beginPath(); c.ellipse(340, 251, 50, 10.5, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#b7c1ca"; c.lineWidth = 1.2; c.stroke();
+    c.strokeStyle = "rgba(0,0,0,0.08)"; c.beginPath(); c.ellipse(340, 250, 33, 6.5, 0, 0, Math.PI * 2); c.stroke();
+  }
+  function drawApple(c, a) {
+    const g = c.createRadialGradient(a.x - 7, a.y - 8, 3, a.x, a.y, AR);
+    g.addColorStop(0, "#f06a6a"); g.addColorStop(0.55, "#cf2f3b"); g.addColorStop(1, "#8f1622");
+    c.fillStyle = g; c.beginPath(); c.ellipse(a.x, a.y + 1, AR, AR - 1, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#5a3a1e"; c.lineWidth = 2.2; c.beginPath(); c.moveTo(a.x, a.y - AR + 4); c.quadraticCurveTo(a.x + 2, a.y - AR - 4, a.x + 5, a.y - AR - 8); c.stroke();
+    c.fillStyle = "#4e9a4a"; c.beginPath(); c.ellipse(a.x + 11, a.y - AR - 4, 7, 3.2, -0.5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "rgba(255,255,255,0.35)"; c.beginPath(); c.ellipse(a.x - 8, a.y - 9, 5, 3.2, -0.6, 0, Math.PI * 2); c.fill();
+  }
+  function drawGripper(c, w, gap) {
+    const half = gap / 2;
+    c.fillStyle = "#222d36"; rr(c, w.x - 18, 7, 36, 20, 4); c.fill();
+    c.fillStyle = "#5c6975"; c.fillRect(w.x - 4, 26, 8, Math.max(0, w.y - 36));
+    c.fillStyle = "rgba(255,255,255,0.15)"; c.fillRect(w.x - 4, 26, 2, Math.max(0, w.y - 36));
+    c.fillStyle = "#222d36"; rr(c, w.x - half - 11, w.y - 10, gap + 22, 14, 4); c.fill();
+    c.fillStyle = "#33414d"; rr(c, w.x - half - 9, w.y + 2, 9, 44, 3); c.fill(); rr(c, w.x + half, w.y + 2, 9, 44, 3); c.fill();
+    c.fillStyle = "#e08a3a"; c.fillRect(w.x - half - 2.5, w.y + 18, 2.5, 20); c.fillRect(w.x + half, w.y + 18, 2.5, 20);
+  }
+  function drawDistractors(c) {
+    c.fillStyle = "#1e272f"; rr(c, 26, 44, 62, 22, 4); c.fill();
+    const on = Math.floor(S.gT / 170) % 3, cols = ["#ff4d5e", "#3dff8f", "#ffd23d"];
+    for (let i = 0; i < 3; i++) {
+      const x = 39 + i * 18;
+      c.fillStyle = i === on ? cols[i] : "#3a454f";
+      if (i === on) { c.shadowColor = cols[i]; c.shadowBlur = 12; }
+      c.beginPath(); c.arc(x, 55, 5, 0, Math.PI * 2); c.fill();
+      c.shadowBlur = 0;
+    }
+    const b = ballAt(S.gT);
+    const g = c.createRadialGradient(b.x - 3, b.y - 3, 1, b.x, b.y, 9);
+    g.addColorStop(0, "#c6a8ff"); g.addColorStop(1, "#6a3fe0");
+    c.fillStyle = g; c.beginPath(); c.arc(b.x, b.y, 9, 0, Math.PI * 2); c.fill();
+  }
+  function drawScene(c) {
+    const tr = lift, t = tr.t;
+    let g = c.createLinearGradient(0, 0, 0, 250);
+    g.addColorStop(0, "#c3cdd6"); g.addColorStop(1, "#e1e7ec");
+    c.fillStyle = g; c.fillRect(0, 0, W, 250);
+    c.fillStyle = "rgba(70,85,100,0.08)"; c.fillRect(158, 0, 1.5, 250); c.fillRect(318, 0, 1.5, 250);
+    c.fillStyle = "#9aa6b1"; c.fillRect(170, 110, 140, 5);
+    c.fillStyle = "rgba(0,0,0,0.12)"; c.fillRect(170, 115, 140, 4);
+    g = c.createLinearGradient(0, 250, 0, H);
+    g.addColorStop(0, "#8d99a5"); g.addColorStop(1, "#66727e");
+    c.fillStyle = g; c.fillRect(0, 250, W, H - 250);
+    c.fillStyle = "rgba(255,255,255,0.4)"; c.fillRect(0, 249, W, 1.5);
+    c.fillStyle = "#3a4651"; c.fillRect(0, 12, W, 9);
+    c.fillStyle = "rgba(255,255,255,0.18)"; c.fillRect(0, 12, W, 1.5);
+    if (S.distract) drawDistractors(c);
+    drawCup(c); drawSponge(c); drawPlate(c);
+    const a = appleAt(tr, t);
+    const lifted = t >= tr.tLift && t < tr.tPlace, onPlate = t >= tr.tPlace;
+    const sy = onPlate ? 248 : 251;
+    const hgt = lifted ? Math.max(0, sy - (a.y + AR)) : 0;
+    c.fillStyle = "rgba(0,0,0," + (0.26 * Math.max(0.25, 1 - hgt / 90)).toFixed(3) + ")";
+    c.beginPath(); c.ellipse(a.x + 2, sy, 19 * Math.max(0.6, 1 - hgt / 200), 4, 0, 0, Math.PI * 2); c.fill();
+    drawApple(c, a);
+    drawGripper(c, wristAt(tr, t), gapAt(tr, t));
+  }
+  function drawUniformOverlay(c, boxes) {
+    let n = 0;
+    c.fillStyle = "rgba(64,124,255,0.30)";
+    for (let i = 0; i < GRID; i++) for (let j = 0; j < GRID; j++) {
+      const x = i * PW, y = j * PH;
+      if (boxes.some(b => overl(x, y, PW, PH, b))) { c.fillRect(x, y, PW, PH); n++; }
+    }
+    c.strokeStyle = "rgba(255,255,255,0.32)"; c.lineWidth = 0.6; c.beginPath();
+    for (let i = 1; i < GRID; i++) { c.moveTo(i * PW, 0); c.lineTo(i * PW, H); c.moveTo(0, i * PH); c.lineTo(W, i * PH); }
+    c.stroke();
+    return n;
+  }
+  function drawAskaOverlay(c, boxes) {
+    const f = fovRect();
+    c.strokeStyle = "rgba(255,255,255,0.4)"; c.lineWidth = 1; c.setLineDash([4, 4]);
+    c.beginPath(); c.moveTo(W / 2, 0); c.lineTo(W / 2, H); c.moveTo(0, H / 2); c.lineTo(W, H / 2); c.stroke(); c.setLineDash([]);
+    let n = 0;
+    c.fillStyle = "rgba(64,124,255,0.30)";
+    for (let i = 0; i < FOV; i++) for (let j = 0; j < FOV; j++) {
+      const x = f.x + i * PW, y = f.y + j * PH;
+      if (boxes.some(b => overl(x, y, PW, PH, b))) { c.fillRect(x, y, PW, PH); n++; }
+    }
+    c.strokeStyle = "rgba(242,181,58,0.6)"; c.lineWidth = 0.7; c.beginPath();
+    for (let i = 1; i < FOV; i++) {
+      c.moveTo(f.x + i * PW, f.y); c.lineTo(f.x + i * PW, f.y + FH);
+      c.moveTo(f.x, f.y + i * PH); c.lineTo(f.x + FW, f.y + i * PH);
+    }
+    c.stroke();
+    c.strokeStyle = "#f2b53a"; c.lineWidth = 2; c.strokeRect(f.x, f.y, FW, FH);
+    const pts = gaze.path;
+    if (pts.length > 1) {
+      c.strokeStyle = "rgba(242,181,58,0.5)"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y);
+      c.stroke();
+    }
+    pts.forEach((p, i) => {
+      c.fillStyle = "rgba(242,181,58," + (0.25 + 0.6 * i / Math.max(1, pts.length - 1)).toFixed(2) + ")";
+      c.beginPath(); c.arc(p.x, p.y, 2.6, 0, Math.PI * 2); c.fill();
+    });
+    const jx = S.gazeMode === "pointer" ? 0 : 0.7 * Math.sin(S.gT * 0.047) + 0.5 * Math.sin(S.gT * 0.131);
+    const jy = S.gazeMode === "pointer" ? 0 : 0.6 * Math.cos(S.gT * 0.053);
+    const gx = gaze.pos.x + jx, gy = gaze.pos.y + jy;
+    c.fillStyle = "rgba(242,181,58,0.2)"; c.beginPath(); c.arc(gx, gy, 13, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#f2b53a"; c.lineWidth = 2; c.beginPath(); c.arc(gx, gy, 7, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = "#fff6df"; c.beginPath(); c.arc(gx, gy, 2, 0, Math.PI * 2); c.fill();
+    const tr = lift;
+    if (tr.tMis !== null && tr.t >= tr.tMis && tr.t < tr.tMis + 450) {
+      const a = appleAt(tr, tr.t), bx = Math.max(6, a.x - 128), by = a.y - 62;
+      c.strokeStyle = "#e0406a"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(bx + 84, by + 9); c.lineTo(a.x - AR, a.y - 4); c.stroke();
+      c.fillStyle = "#d8335f"; rr(c, bx, by, 84, 18, 4); c.fill();
+      c.fillStyle = "#ffffff"; c.font = "600 9px " + MONO; c.textBaseline = "middle"; c.textAlign = "center";
+      c.fillText("MISMATCH", bx + 42, by + 9.5);
+    }
+    return n;
+  }
+
+  /* canvases */
+  function fit(cv) {
+    const r = cv.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    return { w: Math.max(1, r.width), h: Math.max(1, r.height), d };
+  }
+  const off = document.createElement("canvas"), mid = document.createElement("canvas"), small = document.createElement("canvas");
+  mid.width = 120; mid.height = 90; small.width = 48; small.height = 36;
+  function renderScopes() {
+    const cu = $("cvU"), ca = $("cvA");
+    fit(cu); fit(ca);
+    if (off.width !== ca.width || off.height !== ca.height) { off.width = ca.width; off.height = ca.height; }
+    const o = off.getContext("2d");
+    o.setTransform(off.width / W, 0, 0, off.height / H, 0, 0);
+    drawScene(o);
+    const boxes = relBoxes();
+    const u = cu.getContext("2d");
+    u.setTransform(1, 0, 0, 1, 0, 0); u.drawImage(off, 0, 0, cu.width, cu.height);
+    u.setTransform(cu.width / W, 0, 0, cu.height / H, 0, 0);
+    const nU = drawUniformOverlay(u, boxes);
+    const m = mid.getContext("2d"), s = small.getContext("2d");
+    m.imageSmoothingEnabled = true; s.imageSmoothingEnabled = true;
+    m.drawImage(off, 0, 0, 120, 90); s.drawImage(mid, 0, 0, 48, 36);
+    const a = ca.getContext("2d");
+    a.setTransform(1, 0, 0, 1, 0, 0); a.imageSmoothingEnabled = true; a.drawImage(small, 0, 0, ca.width, ca.height);
+    a.setTransform(ca.width / W, 0, 0, ca.height / H, 0, 0);
+    a.fillStyle = "rgba(14,22,30,0.22)"; a.fillRect(0, 0, W, H);
+    const f = fovRect();
+    a.save(); a.beginPath(); a.rect(f.x, f.y, FW, FH); a.clip();
+    a.setTransform(1, 0, 0, 1, 0, 0); a.drawImage(off, 0, 0, ca.width, ca.height); a.restore();
+    const nA = drawAskaOverlay(a, boxes);
+    return { nU, nA };
+  }
+
+  const C = {};
+  function readTokens() {
+    const s = getComputedStyle(document.documentElement);
+    for (const k of ["ink", "muted", "line", "model", "gaze", "error", "ok"]) C[k] = s.getPropertyValue("--" + k).trim() || "#888";
+  }
+
+  function drawForce() {
+    const cv = $("cvF"), { w, h, d } = fit(cv), c = cv.getContext("2d");
+    c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, w, h);
+    const tr = lift, m = { l: 30, r: 20, t: 8, b: 22 }, pw = w - m.l - m.r, ph = h - m.t - m.b;
+    const xMax = Math.max(2500, Math.ceil(tr.tPlace / 500) * 500);
+    const peak = Math.max(tr.A * 1.06, tr.E * 1.04, tr.kind === "light" ? tr.rate * (tr.tCorr - T_CONTACT) : 0);
+    const yMax = Math.max(2, Math.ceil(peak * GN * 1.15));
+    const X = t => m.l + (t / xMax) * pw, Y = f => m.t + ph - (f / yMax) * ph;
+    c.font = "10px " + MONO; c.lineWidth = 1;
+    for (let f = 0; f <= yMax; f++) {
+      const y = Math.round(Y(f)) + 0.5;
+      c.strokeStyle = C.line; c.beginPath(); c.moveTo(m.l, y); c.lineTo(m.l + pw, y); c.stroke();
+      c.fillStyle = C.muted; c.textAlign = "right"; c.textBaseline = "middle"; c.fillText(String(f), m.l - 7, y);
+    }
+    c.textAlign = "center"; c.textBaseline = "top";
+    const step = pw < 260 ? 1000 : 500;
+    for (let t = 0; t <= xMax; t += step) c.fillText(String(t), X(t), m.t + ph + 7);
+    const yA = Math.round(Y(tr.A * GN)) + 0.5;
+    c.strokeStyle = C.muted; c.setLineDash([2, 4]); c.beginPath(); c.moveTo(m.l, yA); c.lineTo(m.l + pw, yA); c.stroke(); c.setLineDash([]);
+    const ev = [{ t: T_PRED, col: C.model, dash: true }];
+    if (tr.tMis !== null && tr.t >= tr.tMis) ev.push({ t: tr.tMis, col: C.error });
+    if (tr.tCorr !== null && tr.t >= tr.tCorr) ev.push({ t: tr.tCorr, col: C.gaze });
+    if (tr.t >= tr.tLift) ev.push({ t: tr.tLift, col: C.ink });
+    ev.forEach((e, i) => {
+      const x = Math.round(X(e.t)) + 0.5;
+      c.strokeStyle = e.col; c.globalAlpha = 0.65; c.setLineDash(e.dash ? [3, 3] : []);
+      c.beginPath(); c.moveTo(x, m.t); c.lineTo(x, m.t + ph); c.stroke();
+      c.globalAlpha = 1; c.setLineDash([]);
+      c.fillStyle = e.col; c.beginPath(); c.arc(x, m.t + 4 + i * 8, 3.2, 0, Math.PI * 2); c.fill();
+    });
+    c.strokeStyle = C.model; c.lineWidth = 2; c.setLineDash([6, 4]); c.beginPath();
+    c.moveTo(X(T_CONTACT), Y(0)); c.lineTo(X(T_PRED), Y(tr.E * GN));
+    c.lineTo(X(Math.min(xMax, Math.max(T_PRED + 250, tr.tLift))), Y(tr.E * GN)); c.stroke(); c.setLineDash([]);
+    const tEnd = Math.min(tr.t, xMax);
+    c.strokeStyle = C.ink; c.lineWidth = 2; c.beginPath();
+    for (let t = 0; t <= tEnd; t += 4) { const x = X(t), y = Y(loadG(tr, t) * GN); if (t === 0) c.moveTo(x, y); else c.lineTo(x, y); }
+    c.lineTo(X(tEnd), Y(loadG(tr, tEnd) * GN)); c.stroke();
+    c.fillStyle = C.ink; c.beginPath(); c.arc(X(tEnd), Y(loadG(tr, tEnd) * GN), 3, 0, Math.PI * 2); c.fill();
+  }
+
+  function drawEEG() {
+    const cv = $("cvE"), { w, h, d } = fit(cv), c = cv.getContext("2d");
+    c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, w, h);
+    const m = { l: 30, r: 8, t: 8, b: 22 }, pw = w - m.l - m.r, ph = h - m.t - m.b, win = 1600, yR = 30;
+    const t1 = S.gT, t0 = t1 - win;
+    const X = t => m.l + ((t - t0) / win) * pw, Y = v => m.t + ph / 2 - (v / yR) * (ph / 2);
+    c.font = "10px " + MONO; c.lineWidth = 1;
+    for (const v of [-20, 0, 20]) {
+      const y = Math.round(Y(v)) + 0.5;
+      c.strokeStyle = C.line; c.beginPath(); c.moveTo(m.l, y); c.lineTo(m.l + pw, y); c.stroke();
+      c.fillStyle = C.muted; c.textAlign = "right"; c.textBaseline = "middle"; c.fillText(v > 0 ? "+" + v : String(v), m.l - 7, y);
+    }
+    c.textBaseline = "top";
+    c.textAlign = "left"; c.fillText("−1.6 s", m.l, m.t + ph + 7);
+    c.textAlign = "center"; c.fillText("−0.8 s", m.l + pw / 2, m.t + ph + 7);
+    c.textAlign = "right"; c.fillText("now", m.l + pw, m.t + ph + 7);
+    for (const e of S.erp) {
+      if (e.t + 600 < t0 || e.t > t1) continue;
+      const xa = clamp(X(e.t + 150), m.l, m.l + pw), xb = clamp(X(e.t + 550), m.l, m.l + pw);
+      if (xb > xa) { c.fillStyle = C.error; c.globalAlpha = 0.1; c.fillRect(xa, m.t, xb - xa, ph); c.globalAlpha = 1; }
+      if (e.t >= t0) {
+        const x = Math.round(X(e.t)) + 0.5;
+        c.strokeStyle = C.error; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, m.t); c.lineTo(x, m.t + ph); c.stroke(); c.lineWidth = 1;
+      }
+    }
+    c.strokeStyle = C.ink; c.lineWidth = 1.2; c.beginPath();
+    let first = true;
+    for (const s of S.eeg) {
+      if (s.t < t0) continue;
+      const x = X(s.t), y = Y(clamp(s.v, -yR, yR));
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y);
+    }
+    c.stroke();
+  }
+
+  function drawLearn() {
+    const cv = $("cvL"), { w, h, d } = fit(cv), c = cv.getContext("2d");
+    c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, w, h);
+    const items = S.history.slice(-8);
+    const m = { l: 34, r: 8, t: 18, b: 22 }, pw = w - m.l - m.r, ph = h - m.t - m.b;
+    if (!items.length) {
+      c.strokeStyle = C.line; c.lineWidth = 1; c.beginPath(); c.moveTo(m.l, m.t + ph + 0.5); c.lineTo(m.l + pw, m.t + ph + 0.5); c.stroke();
+      c.fillStyle = C.muted; c.font = "13px " + BODY; c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillText("Each finished lift adds a bar here.", m.l + pw / 2, m.t + ph / 2);
+      return;
+    }
+    const maxE = Math.max(...items.map(it => it.err));
+    const yMax = Math.max(20, Math.ceil(maxE * 1.2 / 20) * 20);
+    const Y = v => m.t + ph - (v / yMax) * ph;
+    c.font = "10px " + MONO; c.lineWidth = 1;
+    for (const v of [0, yMax / 2, yMax]) {
+      const y = Math.round(Y(v)) + 0.5;
+      c.strokeStyle = C.line; c.beginPath(); c.moveTo(m.l, y); c.lineTo(m.l + pw, y); c.stroke();
+      c.fillStyle = C.muted; c.textAlign = "right"; c.textBaseline = "middle"; c.fillText(String(v), m.l - 7, y);
+    }
+    const thr = TOL * items[items.length - 1].A;
+    if (thr < yMax) {
+      const y = Math.round(Y(thr)) + 0.5;
+      c.strokeStyle = C.muted; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(m.l, y); c.lineTo(m.l + pw, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = C.muted; c.font = "11px " + BODY; c.textAlign = "right"; c.textBaseline = "bottom";
+      c.fillText("mismatch threshold", m.l + pw, y - 3);
+      c.font = "10px " + MONO;
+    }
+    const slot = pw / 8, bw = Math.min(28, slot * 0.6);
+    items.forEach((it, i) => {
+      const x = m.l + i * slot + (slot - bw) / 2, y = Y(it.err);
+      const over = it.err >= TOL * it.A;
+      c.fillStyle = over ? C.error : C.ok; c.globalAlpha = 0.85;
+      c.fillRect(x, Math.min(y, m.t + ph - 1), bw, Math.max(1, m.t + ph - y)); c.globalAlpha = 1;
+      c.fillStyle = C.ink; c.textAlign = "center"; c.textBaseline = "bottom";
+      c.fillText(String(Math.round(it.err)), x + bw / 2, Math.min(y, m.t + ph - 1) - 3);
+      c.fillStyle = C.muted; c.textBaseline = "top"; c.fillText("#" + it.n, x + bw / 2, m.t + ph + 7);
+    });
+  }
+
+  /* stage logic and text */
+  const loopItems = Array.from(document.querySelectorAll("#loop li"));
+  function stageInfo(tr) {
+    const t = tr.t, pred = S.gazeMode === "predictive";
+    const E = Math.round(tr.E), nextE = Math.round(tr.E + LEARN * (tr.A - tr.E));
+    if (t < T_CONTACT) {
+      return { i: 0, text: (pred ? "Gaze lands on the apple before the gripper gets there. " : "") +
+        "From " + (tr.n === 1 ? "how the apple looks" : "how it looks and the last lift") + ", the model expects about " + E + " g and plans its force." };
+    }
+    const first = tr.tMis !== null ? tr.tMis : tr.tLift;
+    if (t < first) return { i: 1, text: "Contact. Force rises on the plan, and lift-off should arrive " + LOAD_MS + " ms after contact." };
+    if (tr.tMis !== null && t < tr.tMis + 250) {
+      return { i: 2, text: tr.kind === "heavy"
+        ? LOAD_MS + " ms passed with no lift-off. The apple is heavier than it looks, and the error signal fires."
+        : "Lift-off came early. The apple is lighter than it looks, and the error signal fires." };
+    }
+    if (t < tr.tPlace) {
+      let s;
+      if (tr.kind === "heavy") s = t < tr.tLift
+        ? "Correction started " + CORR + " ms after the mismatch. Force climbs until the apple lifts."
+        : "Lifted at " + fmt(tr.tLift) + " ms, " + fmt(tr.tLift - T_PRED) + " ms later than planned.";
+      else if (tr.kind === "light") s = "Correction started " + CORR + " ms after the early lift-off, and force drops back to what the apple needs.";
+      else s = "Lift-off on time. The prediction held, so nothing needs correcting.";
+      if (pred && t >= tr.tLift + 100) s += " Gaze already waits at the plate, ahead of the gripper.";
+      return { i: 3, text: s };
+    }
+    return { i: 4, text: tr.kind === "match"
+      ? "Placed. The prediction held, so memory barely moves. The next lift expects " + nextE + " g."
+      : "Placed. Memory updates, and the next lift expects " + nextE + " g instead of " + E + " g." };
+  }
+  function chip(el, label, v) {
+    const s = v === null ? "pending" : v ? "yes" : "no";
+    if (el.dataset.s !== s) el.dataset.s = s;
+    setText(el, label + ": " + (v === null ? "pending" : v ? "yes" : "missed"));
+  }
+  function updateUI(n) {
+    const tr = lift, st = stageInfo(tr);
+    loopItems.forEach((li, k) => {
+      const skipped = k === 2 && tr.kind === "match" && tr.t >= tr.tLift;
+      li.classList.toggle("is-active", k === st.i);
+      li.classList.toggle("is-done", k < st.i && !skipped);
+      li.classList.toggle("is-skipped", skipped);
+    });
+    setText($("caption"), st.text);
+    setText($("relU"), n.nU + " of " + U_TOKENS); setText($("relUp"), Math.round(n.nU / U_TOKENS * 100) + "%");
+    setText($("relA"), n.nA + " of " + A_TOKENS); setText($("relAp"), Math.round(n.nA / A_TOKENS * 100) + "%");
+    chip($("chipC"), "Contact in fovea", tr.seen.contact);
+    chip($("chipL"), "Lift-off in fovea", tr.seen.lift);
+    setText($("rLift"), String(tr.n));
+    setText($("rE"), Math.round(tr.E) + " g");
+    setText($("rA"), Math.round(tr.A) + " g");
+    setText($("rErr"), Math.round(Math.abs(tr.A - tr.E)) + " g");
+    setText($("tNow"), "t " + fmt(tr.t) + " ms");
+    setText($("lgPlan"), "Planned force, expects " + Math.round(tr.E) + " g");
+    setText($("lgW"), "Apple's weight, " + Math.round(tr.A) + " g");
+    setText($("evP"), fmt(T_PRED) + " ms");
+    const past = tr.t >= tr.tLift;
+    setText($("evM"), tr.tMis === null ? (past ? "none" : "pending") : (tr.t >= tr.tMis ? fmt(tr.tMis) + " ms" : "pending"));
+    setText($("evC"), tr.tCorr === null ? (past ? "none" : "pending") : (tr.t >= tr.tCorr ? fmt(tr.tCorr) + " ms" : "pending"));
+    setText($("evL"), past ? fmt(tr.tLift) + " ms" : "pending");
+  }
+
+  function render() {
+    if (S.gazeMode === "pointer") updateGaze();
+    const n = renderScopes();
+    drawForce(); drawEEG(); drawLearn();
+    updateUI(n);
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dtReal = Math.min(50, Math.max(0, now - last)); last = now;
+    if (S.playing) {
+      if (S.waiting) { S.waitReal -= dtReal; if (S.waitReal <= 0) nextLift(); }
+      advance(dtReal * S.speed);
+    }
+    try { render(); } catch (err) { console.error(err); }
+    requestAnimationFrame(frame);
+  }
+
+  /* controls */
+  function syncPlay() { $("play").textContent = S.playing ? "Pause" : "Play"; $("play").setAttribute("aria-pressed", String(S.playing)); }
+  $("play").addEventListener("click", () => { S.playing = !S.playing; syncPlay(); });
+  document.querySelectorAll("#speed button").forEach(b => b.addEventListener("click", () => {
+    S.speed = parseFloat(b.dataset.speed);
+    document.querySelectorAll("#speed button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  }));
+  document.querySelectorAll("#gazeSeg button").forEach(b => b.addEventListener("click", () => {
+    S.gazeMode = b.dataset.gaze; sal.p = null; gaze.path = [];
+    document.querySelectorAll("#gazeSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    $("scopes").classList.toggle("pointer-mode", S.gazeMode === "pointer");
+    $("phint").hidden = S.gazeMode !== "pointer";
+    if (S.gazeMode !== "pointer") { gaze.from = { ...gaze.pos }; gaze.to = { ...gaze.pos }; }
+  }));
+  $("distract").addEventListener("change", e => { S.distract = e.target.checked; sal.p = null; });
+  $("weight").addEventListener("input", e => {
+    S.actualA = +e.target.value; setText($("weightOut"), S.actualA + " g");
+    if (!S.waiting && lift.t < 900) { const t = lift.t; lift = plan(lift.E, S.actualA, lift.n); lift.t = t; $("wnote").hidden = true; }
+    else $("wnote").hidden = false;
+  });
+  $("resetMem").addEventListener("click", () => {
+    S.memE = APPEAR; S.history = []; lift = plan(APPEAR, S.actualA, 1); S.waiting = false; gaze.path = []; sal.p = null; $("wnote").hidden = true;
+  });
+  for (const id of ["cvU", "cvA"]) {
+    const cv = $(id);
+    const h = e => {
+      if (S.gazeMode !== "pointer") return;
+      const r = cv.getBoundingClientRect();
+      S.pointer = { x: clamp((e.clientX - r.left) / r.width * W, 0, W), y: clamp((e.clientY - r.top) / r.height * H, 0, H) };
+    };
+    cv.addEventListener("pointermove", h); cv.addEventListener("pointerdown", h);
+  }
+
+  /* the headline has its own fovea */
+  const words = Array.from(document.querySelectorAll("#headline .w"));
+  function focusWord(k) {
+    words.forEach((w, i) => {
+      const dd = Math.abs(i - k);
+      w.style.filter = dd ? "blur(" + Math.min(1.2, dd * 0.4).toFixed(2) + "px)" : "none";
+      w.style.opacity = String(Math.max(0.5, 1 - dd * 0.14));
+    });
+  }
+  focusWord(3);
+  const hl = $("headline");
+  hl.addEventListener("pointermove", e => {
+    let best = 0, bd = Infinity;
+    words.forEach((w, i) => {
+      const r = w.getBoundingClientRect();
+      const dd = Math.hypot(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+      if (dd < bd) { bd = dd; best = i; }
+    });
+    focusWord(best);
+  });
+  hl.addEventListener("pointerleave", () => focusWord(3));
+
+  /* theme */
+  readTokens();
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTokens); } catch (e) {}
+  new MutationObserver(readTokens).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class", "style"] });
+
+  /* start */
+  genEEG();
+  syncPlay();
+  if (reduce) for (let i = 0; i < 95; i++) advance(16);
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

@@ -32,7 +32,7 @@ export interface PredictContext {
 export function computeFrameFeatures(t: number, cur: Float32Array, prev: Float32Array | null, lead: Point | null): FrameFeatures {
   const sq = resample(cur, FRAME_W, FRAME_H, 64, 64);
   const saliency = normalizeMax(resample(spectralResidual(sq, 64, 64), 64, 64, GX, GY));
-  let motion = new Float32Array(GX * GY);
+  let motion: Float32Array = new Float32Array(GX * GY);
   if (prev) {
     const m = resample(motionMap(cur, prev, FRAME_W, FRAME_H), FRAME_W, FRAME_H, GX, GY);
     let hi = 0;

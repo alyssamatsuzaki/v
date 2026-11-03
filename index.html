@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aska Lens v0</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand"><span class="logo">Aska Lens</span><span class="ver">v0</span></div>
+      <div class="status">
+        <span class="chip" id="chipGaze">Gaze: pointer (not eye tracking)</span>
+        <span class="chip" id="chipCal">Calibration: none</span>
+        <span class="chip" id="chipRec">Not recording</span>
+      </div>
+      <video id="camVideo" class="cam" muted playsinline hidden></video>
+      <a class="sim-link" href="/vision-loop.html" target="_blank" rel="noopener">Vision loop simulation</a>
+    </header>
+
+    <section class="controls" id="controls" aria-label="Controls">
+      <div class="group">
+        <span class="label">Scene</span>
+        <div class="row">
+          <select id="sceneSource" aria-label="Scene source">
+            <option value="procedural">Built-in gripper scene</option>
+            <option value="video">Video file…</option>
+          </select>
+          <input type="file" id="videoFile" accept="video/*" hidden />
+          <label class="toggle"><input type="checkbox" id="distract" /> Distractors</label>
+          <label class="inline" for="sceneSpeed">Speed</label>
+          <select id="sceneSpeed" aria-label="Scene speed">
+            <option value="0.4">0.4×</option>
+            <option value="0.6" selected>0.6×</option>
+            <option value="1">1×</option>
+          </select>
+        </div>
+      </div>
+      <div class="group">
+        <span class="label">Gaze</span>
+        <div class="row">
+          <div class="seg" role="group" aria-label="Gaze source">
+            <button type="button" id="gzPointer" aria-pressed="true">Pointer</button>
+            <button type="button" id="gzWebcam" aria-pressed="false">Webcam</button>
+          </div>
+          <button type="button" class="btn" id="calibrate" disabled>Calibrate</button>
+          <label class="toggle"><input type="checkbox" id="showGaze" /> Show my gaze on the stage</label>
+        </div>
+      </div>
+      <div class="group">
+        <span class="label">Session</span>
+        <div class="row">
+          <button type="button" class="btn primary" id="rec">Start recording</button>
+          <button type="button" class="btn" id="export" disabled>Export session (.zip)</button>
+        </div>
+      </div>
+      <p class="hint" id="hint">Press <kbd>D</kbd> for demo mode.</p>
+    </section>
+
+    <main class="views">
+      <figure class="card stage-card">
+        <figcaption class="card-head">
+          <div>
+            <div class="title">What you watch</div>
+            <div class="sub">Uniform encoder: every patch at full resolution</div>
+          </div>
+          <div class="count"><b>324</b><span>tokens / frame</span><em class="base">baseline</em></div>
+        </figcaption>
+        <div class="stage" id="stage">
+          <canvas id="stageCanvas" width="640" height="480"></canvas>
+          <canvas id="overlay" width="640" height="480"></canvas>
+          <div class="calib" id="calib" hidden>
+            <div class="dot" id="calibDot"></div>
+            <p id="calibMsg"></p>
+          </div>
+          <p class="stage-msg" id="stageMsg" hidden></p>
+        </div>
+      </figure>
+      <figure class="card aska-card">
+        <figcaption class="card-head">
+          <div>
+            <div class="title">What Aska sees</div>
+            <div class="sub">Sharp only where you look, four coarse tokens elsewhere</div>
+          </div>
+          <div class="count"><b>20</b><span>tokens / frame</span><em>94% fewer</em></div>
+        </figcaption>
+        <canvas id="askaCanvas" width="480" height="360"></canvas>
+        <div class="legend-row">
+          <span><i class="sw gaze"></i>Your gaze</span>
+          <span><i class="sw pred"></i>Aska v0's next-fixation prediction</span>
+        </div>
+        <div class="mm" id="mmStat">No fixations scored yet</div>
+        <div class="weights-block">
+          <div class="label">Aska v0 weights, learned online</div>
+          <div class="weights" id="weights"></div>
+        </div>
+      </figure>
+    </main>
+
+    <section class="panels">
+      <div class="card score-card">
+        <div class="title">Scoreboard</div>
+        <p class="sub">Each model predicts your next fixation before it happens. Error is in stage widths. A hit means your fixation landed inside the predicted fovea box.</p>
+        <div class="table-wrap"><table id="score"></table></div>
+      </div>
+      <div class="card">
+        <div class="title">Rolling error, last 20 fixations</div>
+        <p class="sub">Dashed red line: half the fovea width. Red ticks: mismatches, where Aska v0 missed by more than that.</p>
+        <canvas id="errChart" class="chart"></canvas>
+        <div class="legend-row" id="errLegend"></div>
+      </div>
+    </section>
+
+    <section class="card report" id="report" hidden>
+      <div class="report-head">
+        <div>
+          <div class="title">Session report</div>
+          <p class="sub" id="reportSub"></p>
+        </div>
+        <div class="row">
+          <button type="button" class="btn primary" id="export2">Export session (.zip)</button>
+        </div>
+      </div>
+      <div class="report-grid">
+        <canvas id="reportThumb" width="640" height="480"></canvas>
+        <div class="stack">
+          <dl class="facts" id="reportFacts"></dl>
+          <div class="table-wrap"><table id="reportTable"></table></div>
+          <canvas id="reportChart" class="chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">Aska Labs · Runs locally. Webcam gaze is approximate; the calibration error above says how approximate. "Mismatch" means gaze-prediction error; there is no EEG yet.</footer>
+
+    <video id="sceneVideo" muted loop playsinline hidden></video>
+
+    <div class="modal" id="consent" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+        <h2 id="consentTitle">Before you start</h2>
+        <p>Aska Lens records where you look, using your webcam. Everything runs and stays in this browser. Nothing is uploaded.</p>
+        <p>Until Aska has consent forms and an independent ethics review, the only person recorded is the founder, testing on herself.</p>
+        <label class="toggle"><input type="checkbox" id="consentBox" /> I am the founder, and I am recording only myself.</label>
+        <button type="button" class="btn primary" id="consentGo" disabled>Continue</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+# Decisions
+
+- MediaPipe Face Landmarker instead of WebGazer, because WebGazer is GPL and MediaPipe is Apache 2.0.
+- Vanilla TypeScript and Canvas 2D, no UI framework, to keep the app small and easy to read.
+- All positions are normalized stage coordinates in [0, 1]; distances are in stage widths, so results don't depend on screen size.
+- The stage is 4:3 with an 18 x 18 uniform grid (324 tokens) and a 4 x 4 fovea plus 2 x 2 coarse periphery (20 tokens), matching the comparison in Chuang et al. (2025).
+- Gaze features: iris position relative to each eye's corners (scaled by eye width), eye openness, head orientation and translation from the facial transformation matrix, nose position and face scale. 15 features.
+- Calibration fits ridge regression per axis on standardized features; lambda is chosen by leave-one-target-out cross-validation from 1e-5 to 1.
+- One Euro filter on webcam gaze (min cutoff 1 Hz, beta 1.5) before event detection; pointer gaze is not filtered.
+- Fixations: dispersion-based (I-DT), 100 ms minimum, 0.04 stage widths. Saccades: velocity above 1.2 stage widths per second.
+- A fixation counts as "recognized" when it has lasted 100 ms; predictions for the next fixation are made at that moment.
+- Analysis frames are 64 x 48 grayscale, about 30 per second; saliency runs on a 64 x 64 resample because the FFT needs powers of two.
+- Motion maps compare frames 100 ms apart; motion lead extrapolates the strongest blob's velocity (measured over 150 ms) 250 ms ahead.
+- Aska v0 predicts on a 32 x 24 grid with six feature maps, softmax temperature 4, learning rate 0.25, and a soft target (Gaussian, 0.035 stage widths) so near misses still teach.
+- A mismatch is Aska v0 missing by more than half the fovea width (0.111 stage widths), the same box used for the hit rate.
+- A new recording starts a fresh pipeline and resets the learner, so each session's learning curve starts from the same weights.
+- The stage shows the uniform grid but hides your own gaze by default, because seeing your gaze point pulls your eyes toward it. Pointer mode shows it.
+- Aska v0's prediction appears only in the Aska view, never on the stage you are watching, for the same reason.
+- Off-stage gaze samples are recorded but not passed to fixation detection.
+- The export is a ZIP with one folder per session; `eeg_events` and `contact_forces` are present as empty arrays so the schema won't change when hardware arrives.
+- The built-in scene and synthetic gaze are seeded so `npm run simulate` is reproducible.
+- `npm run simulate` exits non-zero if Aska v0 fails to beat center bias and saliency on synthetic gaze.
